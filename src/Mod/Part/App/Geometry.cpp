@@ -1064,9 +1064,14 @@ const Handle(Geom_Geometry)& GeomBSplineCurve::handle() const
 
 Geometry *GeomBSplineCurve::copy(void) const
 {
-    GeomBSplineCurve *newCurve = new GeomBSplineCurve(myCurve);
-    newCurve->Construction = this->Construction;
-    return newCurve;
+    try {
+        GeomBSplineCurve *newCurve = new GeomBSplineCurve(myCurve);
+        newCurve->Construction = this->Construction;
+        return newCurve;
+    }
+    catch (Standard_Failure& e) {
+        THROWM(Base::CADKernelError, e.GetMessageString())
+    }
 }
 
 int GeomBSplineCurve::countPoles() const
@@ -1089,7 +1094,6 @@ void GeomBSplineCurve::setPole(int index, const Base::Vector3d& pole, double wei
             myCurve->SetPole(index,pnt,weight);
     }
     catch (Standard_Failure& e) {
-
         THROWM(Base::CADKernelError,e.GetMessageString())
     }
 }
@@ -1396,11 +1400,25 @@ void GeomBSplineCurve::increaseMultiplicity(int index, int multiplicity)
 bool GeomBSplineCurve::removeKnot(int index, int multiplicity, double tolerance)
 {
     try {
-        Handle(Geom_BSplineCurve) curve = Handle(Geom_BSplineCurve)::DownCast(this->handle());
-        return curve->RemoveKnot(index, multiplicity, tolerance) == Standard_True;
+        Handle(Geom_BSplineCurve) curve =Handle(Geom_BSplineCurve)::DownCast(myCurve->Copy());
+        if (curve->RemoveKnot(index, multiplicity, tolerance)) {
+
+            // It can happen that OCCT computes a negative weight but still claims the removal was successful
+            TColStd_Array1OfReal weights(1, curve->NbPoles());
+            curve->Weights(weights);
+            for (Standard_Integer i = weights.Lower(); i <= weights.Upper(); i++) {
+                double v = weights(i);
+                if (v <= gp::Resolution())
+                    return false;
+            }
+
+            myCurve = curve;
+            return true;
+        }
+
+        return false;
     }
     catch (Standard_Failure& e) {
-
         THROWM(Base::CADKernelError,e.GetMessageString())
     }
 }
