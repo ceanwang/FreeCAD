@@ -34,6 +34,8 @@
 
 #include <Mod/Sketcher/App/SketchAnalysis.h>
 
+#include "GeometryFacade.h"
+
 #include "Analyse.h"
 
 #include "Sketch.h"
@@ -105,6 +107,8 @@ public:
      \retval int - 0 if successful
      */
     int delGeometry(int GeoId, bool deleteinternalgeo = true);
+    /// Does the same as \a delGeometry but allows to delete several geometries in one step
+    int delGeometries(const std::vector<int>& GeoIds);
     /// deletes all the elements/constraints of the sketch except for external geometry
     int deleteAllGeometry();
     /// deletes all the constraints of the sketch
@@ -144,6 +148,9 @@ public:
      *  id<=-3 for user defined projected external geometries,
      */
     const Part::Geometry* getGeometry(int GeoId) const;
+
+    std::unique_ptr<const GeometryFacade> getGeometryFacade(int GeoId) const;
+
     /// returns a list of all internal geometries
     const std::vector<Part::Geometry *> &getInternalGeometry(void) const { return Geometry.getValues(); }
     /// returns a list of projected external geometries
@@ -418,6 +425,10 @@ public:
     // Validation routines
     std::vector<Base::Vector3d> getOpenVertices(void) const;
 
+public: // geometry extension functionalities for single element sketch object user convenience
+    int setGeometryId(int GeoId, long id);
+    int getGeometryId(int GeoId, long &id) const;
+
 protected:
     /// get called by the container when a property has changed
     virtual void onChanged(const App::Property* /*prop*/) override;
@@ -443,6 +454,9 @@ protected:
     int testDrivingChange(int ConstrId, bool isdriving);
 
     virtual void onUndoRedoFinished() override;
+
+    // migration functions
+    void migrateSketch(void);
 
 private:
     /// Flag to allow external geometry from other bodies than the one this sketch belongs to
@@ -476,6 +490,21 @@ private:
     boost::signals2::scoped_connection constraintsRemovedConn;
 
     bool AutoLockTangencyAndPerpty(Constraint* cstr, bool bForce = false, bool bLock = true);
+
+    // Geometry Extensions is used to store on geometry a state that is enforced by pre-existing constraints
+    // Like Block constraint and InternalAlignment constraint. This enables (more) convenient handling in ViewProviderSketch
+    // and solver.
+    //
+    // These functions are responsible for updating the Geometry State, currently Geometry Mode (Blocked) and
+    // Geometry InternalType (BSplineKnot, BSplinePole).
+    //
+    // The data life model for handling this state is as follows:
+    // 1. Upon restore, any migration is handled to set the status for legacy files (backwards compatibility)
+    // 2. Functionality adding constraints (of the relevant type) calls addGeometryState to set the status
+    // 3. Functionality removing constraints (of the relevant type) calls removeGeometryState to remove the status
+    // 4. Save mechanism will ensure persistence.
+    void addGeometryState(const Constraint* cstr) const;
+    void removeGeometryState(const Constraint* cstr) const;
 
     SketchAnalysis * analyser;
 

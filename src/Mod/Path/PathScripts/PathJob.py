@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-
 # ***************************************************************************
-# *                                                                         *
 # *   Copyright (c) 2014 Yorik van Havre <yorik@uncreated.net>              *
 # *                                                                         *
 # *   This program is free software; you can redistribute it and/or modify  *
@@ -94,6 +92,13 @@ def createResourceClone(obj, orig, name, icon):
 
 def createModelResourceClone(obj, orig):
     return createResourceClone(obj, orig, 'Model', 'BaseGeometry')
+
+
+class NotificationClass(QtCore.QObject):
+    updateTC = QtCore.Signal(object, object)
+
+
+Notification = NotificationClass()
 
 
 class ObjectJob:
@@ -263,6 +268,7 @@ class ObjectJob:
         self.setupBaseModel(obj)
         self.fixupOperations(obj)
         self.setupSetupSheet(obj)
+
         obj.setEditorMode('Operations', 2)  # hide
         obj.setEditorMode('Placement', 2)
 
@@ -415,6 +421,7 @@ class ObjectJob:
             tc.setExpression('HorizRapid', "%s.%s" % (self.setupSheet.expressionReference(), PathSetupSheet.Template.HorizRapid))
             group.append(tc)
             self.obj.ToolController = group
+            Notification.updateTC.emit(self.obj, tc)
 
     def allOperations(self):
         ops = []

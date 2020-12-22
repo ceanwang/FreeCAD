@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-
 # ***************************************************************************
-# *                                                                         *
 # *   Copyright (c) 2017 sliptonic <shopinthewoods@gmail.com>               *
 # *                                                                         *
 # *   This program is free software; you can redistribute it and/or modify  *
@@ -27,7 +25,6 @@ from collections import Counter
 from contextlib import contextmanager
 import math
 import traceback
-
 from pivy import coin
 from PySide import QtCore, QtGui
 
@@ -47,6 +44,7 @@ import PathScripts.PathToolControllerGui as PathToolControllerGui
 import PathScripts.PathToolLibraryEditor as PathToolLibraryEditor
 import PathScripts.PathUtil as PathUtil
 import PathScripts.PathUtils as PathUtils
+import PathScripts.PathToolBitGui as PathToolBitGui
 
 # lazily loaded modules
 from lazy_loader.lazy_loader import LazyLoader
@@ -209,7 +207,7 @@ class ViewProvider:
         self.unsetEdit(None, None)
 
     def getIcon(self):
-        return ":/icons/Path-Job.svg"
+        return ":/icons/Path_Job.svg"
 
     def claimChildren(self):
         children = self.obj.ToolController
@@ -868,7 +866,15 @@ class TaskPanel:
         self.toolControllerSelect()
 
     def toolControllerAdd(self):
-        PathToolLibraryEditor.CommandToolLibraryEdit().edit(self.obj, self.updateToolController)
+        if PathPreferences.toolsUseLegacyTools():
+            PathToolLibraryEditor.CommandToolLibraryEdit().edit(self.obj, self.updateToolController)
+        else:
+            tools = PathToolBitGui.LoadTools()
+            for tool in tools:
+                tc = PathToolControllerGui.Create(name=tool.Label, tool=tool)
+                self.obj.Proxy.addToolController(tc)
+            FreeCAD.ActiveDocument.recompute()
+            self.updateToolController()
 
     def toolControllerDelete(self):
         self.objectDelete(self.form.toolControllerList)
